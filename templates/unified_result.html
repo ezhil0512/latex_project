@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>LaTeX Result</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/unified_result.css') }}">
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']]
+            },
+            options: {
+                skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+            }
+        };
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.min.js"></script>
+</head>
+<body>
+    <main class="page">
+        <section class="workspace results-workspace">
+            <div class="results-header">
+                <a href="{{ url_for('index') }}" class="btn-back">← Back to Upload</a>
+                <h1>
+                    {% if is_single_question %}
+                        ✓ Question Processed
+                    {% else %}
+                        ✓ {{ total_questions }} Questions Processed
+                    {% endif %}
+                </h1>
+                <p class="file-type-badge">
+                    {% if file_type == 'image' %}
+                        📷 Image
+                    {% else %}
+                        📄 PDF
+                    {% endif %}
+                </p>
+            </div>
+
+            <!-- Error Messages -->
+            {% if errors %}
+                <div class="notice warning">
+                    <p><strong>⚠️ Warnings:</strong></p>
+                    {% for error in errors %}
+                        <p>• {{ error }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <!-- Extracted Text Section -->
+            {% if extracted_text %}
+                <section class="result-section">
+                    <h2>📝 Extracted Text</h2>
+                    <div class="extracted-text-box">
+                        <pre>{{ extracted_text }}</pre>
+                    </div>
+                </section>
+            {% endif %}
+
+            <!-- Images Section -->
+            {% if images %}
+                <section class="result-section">
+                    <h2>🖼️ Extracted Images ({{ images|length }})</h2>
+                    <div class="images-gallery">
+                        {% for img in images %}
+                            <div class="image-card">
+                                <img src="{{ img }}" alt="Extracted image">
+                            </div>
+                        {% endfor %}
+                    </div>
+                </section>
+            {% endif %}
+
+            <!-- Questions Display (for multi-question PDFs) -->
+            {% if not is_single_question %}
+                <section class="result-section questions-section">
+                    <h2>📋 Extracted Questions</h2>
+                    <div class="questions-container">
+                        {% for question in questions %}
+                            <div class="question-item">
+                                <h3>Question {{ question.question_num }}</h3>
+                                
+                                {% if question.images %}
+                                    <div class="q-images">
+                                        <p class="q-label">Associated Images:</p>
+                                        {% for img in question.images %}
+                                            <img src="{{ img }}" alt="Q{{ question.question_num }} image" class="q-image">
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+
+                                <details class="question-details">
+                                    <summary>View Full LaTeX</summary>
+                                    <textarea class="latex-code" readonly>{{ question.latex }}</textarea>
+                                    <button class="btn-copy" onclick="copyLatex(this)">📋 Copy LaTeX</button>
+                                </details>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </section>
+            {% endif %}
+
+            <!-- LaTeX Output Section (for single questions) -->
+            {% if is_single_question and latex_output %}
+                <section class="result-section">
+                    <div class="latex-section-header">
+                        <h2>⚙️ LaTeX Code</h2>
+                        <div class="latex-actions">
+                            <button class="btn-primary" onclick="copyLatex(this)">📋 Copy</button>
+                            <a class="btn-primary" href="{{ download_url }}">⬇️ Download</a>
+                            <button class="btn-primary" onclick="togglePreview()">👁️ Preview</button>
+                        </div>
+                    </div>
+
+                    <textarea class="latex-output" readonly>{{ latex_output }}</textarea>
+
+                    <!-- Preview Section -->
+                    <div id="preview-section" class="preview-section" style="display: none;">
+                        <h2>👁️ Preview</h2>
+                        <div id="preview-content" class="preview-content"></div>
+                    </div>
+                </section>
+            {% endif %}
+
+            <!-- Multi-Question Download -->
+            {% if not is_single_question %}
+                <section class="result-section batch-actions">
+                    <h2>📦 Batch Actions</h2>
+                    <p>Download all questions as individual .tex files or as a single ZIP archive.</p>
+                    <div class="action-buttons">
+                        <a class="btn-primary" href="{{ download_url }}">📦 Download Package</a>
+                    </div>
+                </section>
+            {% endif %}
+
+            <!-- New Upload -->
+            <section class="result-section">
+                <a href="{{ url_for('index') }}" class="btn-primary btn-new-upload">↻ Process Another File</a>
+            </section>
+        </section>
+    </main>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script>
+        /**
+         * Copy LaTeX code to clipboard
+         */
+        function copyLatex(button) {
+            let textarea;
+            
+            if (button && button.closest) {
+                // Button is a DOM element
+                textarea = button.closest('.question-details')?.querySelector('.latex-code') || document.querySelector('.latex-output');
+            } else {
+                console.error('Invalid button element');
+                return;
+            }
+            
+            if (!textarea || !textarea.value) {
+                alert('No content to copy');
+                return;
+            }
+
+            const text = textarea.value;
+
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text)
+                    .then(() => {
+                        const originalText = button.textContent;
+                        button.textContent = '✓ Copied!';
+                        setTimeout(() => {
+                            button.textContent = originalText;
+                        }, 2000);
+                    })
+                    .catch(() => {
+                        fallbackCopy(text);
+                    });
+            } else {
+                fallbackCopy(text);
+            }
+        }
+
+        /**
+         * Fallback copy for older browsers
+         */
+        function fallbackCopy(text) {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            alert('Copied to clipboard!');
+        }
+
+        /**
+         * Toggle preview section
+         */
+        function togglePreview() {
+            const previewSection = document.getElementById('preview-section');
+            const textarea = document.querySelector('.latex-output');
+            
+            if (!textarea) {
+                console.error('No LaTeX output textarea found');
+                return;
+            }
+
+            if (!previewSection) {
+                console.error('No preview section found');
+                return;
+            }
+
+            if (previewSection.style.display === 'none' || previewSection.style.display === '') {
+                previewSection.style.display = 'block';
+                renderLatexPreview(textarea.value);
+            } else {
+                previewSection.style.display = 'none';
+            }
+        }
+
+        /**
+         * Render LaTeX as HTML for preview
+         */
+        function renderLatexPreview(latexCode) {
+            const previewContent = document.getElementById('preview-content');
+            if (!previewContent) {
+                console.error('No preview content element found');
+                return;
+            }
+
+            try {
+                const bodyMatch = latexCode.match(/\\begin\{document\}([\s\S]*?)\\end\{document\}/);
+                let bodyContent = bodyMatch ? bodyMatch[1].trim() : latexCode.trim();
+
+                // Strip math delimiters and prepare for HTML
+                bodyContent = bodyContent
+                    .replace(/\$\$/g, ' ')
+                    .replace(/\$/g, ' ')
+                    .replace(/\\\(/g, '')
+                    .replace(/\\\)/g, '');
+
+                // Escape HTML
+                bodyContent = bodyContent
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;');
+
+                // Clean up LaTeX
+                bodyContent = bodyContent
+                    .replace(/\\begin\{center\}/g, '<div style="text-align: center;">')
+                    .replace(/\\end\{center\}/g, '</div>')
+                    .replace(/\\begin\{.*?\}/g, '')
+                    .replace(/\\end\{.*?\}/g, '')
+                    .replace(/\\\\/g, '<br>')
+                    .replace(/\\includegraphics(?:\[[^\]]*\])?\{([^}]+)\}/g, (match, src) => {
+                        const normalized = src.replace(/^(\.\.\/)+/, '');
+                        const absoluteSrc = normalized.startsWith('/') ? normalized : `/${normalized}`;
+                        return `<img src="${absoluteSrc}" style="max-width: 100%; height: auto; margin: 10px 0;" alt="diagram">`;
+                    })
+                    .replace(/\\textbf\{([^}]+)\}/g, '<strong>$1</strong>')
+                    .replace(/\\textit\{([^}]+)\}/g, '<em>$1</em>')
+                    .replace(/\\item\s+/g, '<li>')
+                    .replace(/\n+/g, '<br>');
+
+                previewContent.innerHTML = `<div class="preview-text">${bodyContent}</div>`;
+
+                if (window.MathJax && window.MathJax.typesetPromise) {
+                    window.MathJax.typesetPromise([previewContent]).catch(err => {
+                        console.warn('MathJax rendering skipped');
+                    });
+                }
+            } catch (err) {
+                console.error('Preview render error:', err);
+                previewContent.innerHTML = '<p style="color: red;">Error rendering preview. Check LaTeX syntax.</p>';
+            }
+        }
+    </script>
+</body>
+</html>

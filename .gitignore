@@ -1,0 +1,11 @@
+.venv/
+.venv-ocr/
+.venv-math/
+__pycache__/
+*.pyc
+.pytest_cache/
+uploads/*
+outputs/*
+!uploads/.gitkeep
+!outputs/.gitkeep
+.env

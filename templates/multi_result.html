@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Multi-Question LaTeX Results</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/multi_question.css') }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/mathjax.min.js"></script>
+</head>
+<body>
+    <main class="page">
+        <section class="multi-result-layout">
+            <div class="result-header">
+                <div>
+                    <p class="eyebrow">Batch Processing Complete</p>
+                    <h1>{{ batch_data.total_questions }} Questions Processed</h1>
+                    {% if batch_data.is_scanned_pdf %}
+                    <p class="scanned-note">📄 Scanned PDF detected - OCR applied</p>
+                    {% endif %}
+                </div>
+                <div class="header-actions">
+                    <a class="link-button" href="{{ url_for('download_batch', batch_id=batch_id) }}">
+                        ⬇️ Download All LaTeX (ZIP)
+                    </a>
+                    <a class="link-button" href="{{ url_for('index') }}">⬅️ New Upload</a>
+                </div>
+            </div>
+
+            <div class="questions-container">
+                {% for question in batch_data.questions %}
+                <div class="question-card" data-q-id="{{ question.question_num }}">
+                    <div class="question-header">
+                        <h2>Question {{ question.question_num }}</h2>
+                        <div class="question-meta">
+                            <span class="status-badge success">✓ Processed</span>
+                            {% if question.diagrams %}
+                            <span class="meta-label">{{ question.diagrams|length }} diagram(s)</span>
+                            {% endif %}
+                            {% if question.equations_count > 0 %}
+                            <span class="meta-label">{{ question.equations_count }} equation(s)</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="question-columns">
+                        <!-- Left: Source -->
+                        <aside class="question-source">
+                            <h3>Extracted Text</h3>
+                            <pre>{{ question.text }}</pre>
+
+                            {% if question.diagrams %}
+                            <h3>Diagrams ({{ question.diagrams|length }})</h3>
+                            <div class="diagrams-grid">
+                                {% for diagram in question.diagrams %}
+                                <div class="diagram-item">
+                                    <img src="{{ url_for('static', filename=diagram) }}" 
+                                         alt="Diagram {{ loop.index }}" 
+                                         class="question-diagram">
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </aside>
+
+                        <!-- Right: LaTeX Output -->
+                        <section class="question-editor">
+                            <div class="editor-actions">
+                                <button class="btn-action btn-preview" 
+                                        onclick="previewQuestion({{ question.question_num }})">
+                                    👁️ Preview
+                                </button>
+                                <button class="btn-action btn-copy" 
+                                        onclick="copyLatex({{ question.question_num }})">
+                                    📋 Copy LaTeX
+                                </button>
+                                <a class="btn-action link-button" 
+                                   href="{{ url_for('download_file', filename=batch_id + '/q_' + question.question_num|string + '/' + question.latex_filename) }}">
+                                    ⬇️ Download .tex
+                                </a>
+                            </div>
+
+                            <textarea class="latex-output" 
+                                      id="latex-q{{ question.question_num }}" 
+                                      spellcheck="false">{{ question.full_latex }}</textarea>
+
+                            <div class="preview" id="preview-q{{ question.question_num }}" hidden>
+                                <div class="preview-header">
+                                    <h3>Preview</h3>
+                                    <button onclick="closePreview({{ question.question_num }})" class="btn-close">✕</button>
+                                </div>
+                                <div id="preview-content-q{{ question.question_num }}" class="preview-content"></div>
+                            </div>
+                        </section>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="batch-footer">
+                <p>Batch ID: <code>{{ batch_id }}</code></p>
+                <p>Processed: {{ batch_data.timestamp }}</p>
+            </div>
+        </section>
+    </main>
+
+    <script src="{{ url_for('static', filename='js/multi_question.js') }}"></script>
+</body>
+</html>

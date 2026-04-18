@@ -1,0 +1,357 @@
+/* Multi-Question LaTeX Results Styling */
+
+.multi-result-layout {
+    display: grid;
+    gap: 2rem;
+    padding: 2rem;
+    max-width: 1600px;
+    margin: 0 auto;
+}
+
+.result-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    border-bottom: 2px solid #e0e0e0;
+    padding-bottom: 1.5rem;
+    gap: 2rem;
+}
+
+.result-header h1 {
+    margin: 0.5rem 0 0;
+    font-size: 2rem;
+    color: #1a1a1a;
+}
+
+.result-header .eyebrow {
+    margin: 0;
+    font-size: 0.9rem;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.scanned-note {
+    margin: 0.5rem 0 0;
+    font-size: 0.9rem;
+    color: #d9534f;
+}
+
+.header-actions {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.link-button {
+    display: inline-block;
+    padding: 0.7rem 1.2rem;
+    background: #5cb85c;
+    color: white;
+    text-decoration: none;
+    border-radius: 4px;
+    font-size: 0.95rem;
+    border: none;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.link-button:hover {
+    background: #4cae4c;
+}
+
+.questions-container {
+    display: grid;
+    gap: 2rem;
+}
+
+.question-card {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 1.5rem;
+    background: #fafafa;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.question-card:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.question-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid #e0e0e0;
+    padding-bottom: 1rem;
+    gap: 1rem;
+}
+
+.question-header h2 {
+    font-size: 1.5rem;
+    margin: 0;
+    color: #1a1a1a;
+}
+
+.question-meta {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.status-badge {
+    padding: 0.4rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.status-badge.success {
+    background: #d4edda;
+    color: #155724;
+}
+
+.meta-label {
+    padding: 0.4rem 0.8rem;
+    background: #e7f3ff;
+    color: #0066cc;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    white-space: nowrap;
+}
+
+.question-columns {
+    display: grid;
+    grid-template-columns: 1fr 1.5fr;
+    gap: 2rem;
+}
+
+.question-source {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.question-source h3 {
+    font-size: 1rem;
+    margin: 0;
+    color: #333;
+    font-weight: 600;
+}
+
+.question-source pre {
+    background: #fff;
+    padding: 1rem;
+    border-radius: 4px;
+    border: 1px solid #e0e0e0;
+    overflow-x: auto;
+    font-size: 0.85rem;
+    max-height: 250px;
+    margin: 0;
+    line-height: 1.4;
+}
+
+.diagrams-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 1rem;
+}
+
+.diagram-item {
+    background: white;
+    padding: 0.5rem;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.question-diagram {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 3px;
+}
+
+.question-editor {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.editor-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.btn-action {
+    padding: 0.6rem 1rem;
+    background: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.btn-action:hover {
+    background: #0056b3;
+}
+
+.btn-action.btn-copy {
+    background: #6f42c1;
+}
+
+.btn-action.btn-copy:hover {
+    background: #5a32a3;
+}
+
+.btn-action.btn-preview {
+    background: #ffc107;
+    color: #333;
+}
+
+.btn-action.btn-preview:hover {
+    background: #e0a800;
+}
+
+.latex-output {
+    width: 100%;
+    height: 350px;
+    padding: 1rem;
+    font-family: 'Monaco', 'Courier New', monospace;
+    font-size: 0.85rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: #fff;
+    resize: vertical;
+    line-height: 1.4;
+}
+
+.preview {
+    background: #fff;
+    padding: 1.5rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    max-height: 500px;
+    overflow-y: auto;
+    border-top: 3px solid #5cb85c;
+}
+
+.preview-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid #e0e0e0;
+    padding-bottom: 0.5rem;
+}
+
+.preview-header h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    color: #333;
+}
+
+.btn-close {
+    background: none;
+    border: none;
+    font-size: 1.3rem;
+    cursor: pointer;
+    color: #999;
+}
+
+.btn-close:hover {
+    color: #333;
+}
+
+.preview-content {
+    line-height: 1.6;
+    color: #333;
+}
+
+.preview-content p {
+    margin: 0.8rem 0;
+}
+
+.preview-content h3 {
+    margin: 1.2rem 0 0.5rem;
+    font-size: 1.1rem;
+}
+
+.batch-footer {
+    text-align: center;
+    padding: 1.5rem;
+    background: #f5f5f5;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    color: #666;
+    border-top: 1px solid #ddd;
+}
+
+.batch-footer code {
+    background: #fff;
+    padding: 0.2rem 0.5rem;
+    border-radius: 3px;
+    font-family: 'Monaco', 'Courier New', monospace;
+    font-size: 0.85rem;
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+    .question-columns {
+        grid-template-columns: 1fr;
+    }
+
+    .result-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .header-actions {
+        width: 100%;
+        justify-content: flex-start;
+    }
+}
+
+@media (max-width: 768px) {
+    .multi-result-layout {
+        padding: 1rem;
+        gap: 1.5rem;
+    }
+
+    .question-card {
+        padding: 1rem;
+    }
+
+    .question-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .question-meta {
+        width: 100%;
+    }
+
+    .editor-actions {
+        flex-direction: column;
+    }
+
+    .btn-action,
+    .link-button {
+        width: 100%;
+        text-align: center;
+    }
+
+    .latex-output {
+        height: 250px;
+    }
+
+    .diagrams-grid {
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    }
+}

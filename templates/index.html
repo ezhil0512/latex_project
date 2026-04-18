@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Offline LaTeX Generator</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <main class="page">
+        <section class="workspace">
+            <div class="intro">
+                <p class="eyebrow">Unified OCR to LaTeX</p>
+                <h1>Convert images and PDFs into perfect LaTeX.</h1>
+                <p>Upload an image or PDF containing questions. The system automatically extracts text, diagrams, and generates editable LaTeX.</p>
+                <p class="subtext">Free and offline after installation — all processing happens locally on your machine.</p>
+            </div>
+
+            {% with messages = get_flashed_messages() %}
+                {% if messages %}
+                    <div class="notice">
+                        {% for message in messages %}
+                            <p>{{ message }}</p>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+            <!-- Unified Upload Form -->
+            <form class="upload-panel" action="{{ url_for('process_unified') }}" method="post" enctype="multipart/form-data">
+                
+                <!-- File Input (Accepts both image and PDF) -->
+                <label class="field">
+                    <span>📁 Upload File (Image or PDF)</span>
+                    <input id="fileInput" name="file" type="file" accept=".png,.jpg,.jpeg,.pdf" required>
+                    <p class="field-hint">Supported: PNG, JPG, JPEG (single image) or PDF (multiple questions)</p>
+                </label>
+
+                <!-- File Preview -->
+                <div class="preview-area">
+                    <img id="imagePreview" alt="Selected image preview" style="display: none;">
+                    <div id="pdfPreview" style="display: none;">
+                        <svg width="48" height="64" viewBox="0 0 48 64" fill="none">
+                            <rect x="2" y="2" width="44" height="60" fill="#fff" stroke="#ccc" stroke-width="2"/>
+                            <text x="24" y="35" text-anchor="middle" font-size="20" fill="#f33">PDF</text>
+                        </svg>
+                        <p id="pdfFileName">PDF File Selected</p>
+                    </div>
+                    <p id="previewText">Choose a PNG, JPG, JPEG image or PDF to see details here.</p>
+                </div>
+
+                <!-- Optional Diagram (for images only) -->
+                <div id="diagramSection" style="display: none;">
+                    <label class="field">
+                        <span>Separate diagram image (optional)</span>
+                        <input id="diagramInput" name="diagram_image" type="file" accept=".png,.jpg,.jpeg">
+                        <p class="field-hint">If you want the diagram as a separate image in LaTeX</p>
+                    </label>
+
+                    <div class="preview-area compact">
+                        <img id="diagramPreviewImage" alt="Selected diagram preview">
+                        <p>Choose a separate diagram for inclusion as an image.</p>
+                    </div>
+                </div>
+
+                <!-- Optional Manual Text -->
+                <label class="field">
+                    <span>Optional text correction</span>
+                    <textarea name="manual_text" rows="6" placeholder="If OCR is incorrect, paste the corrected text here. Do not include LaTeX preamble (\documentclass, \usepackage, etc)."></textarea>
+                    <p class="field-hint">Leave empty to use OCR text as-is</p>
+                </label>
+
+                <label class="checkbox-field">
+                    <input name="manual_only" type="checkbox">
+                    <span>Use corrected text only (ignore OCR)</span>
+                </label>
+
+                <!-- Submit Button -->
+                <button type="submit" class="btn-submit">🚀 Process & Generate LaTeX</button>
+
+                <!-- Processing Info -->
+                <div class="processing-info">
+                    <p><strong>ℹ️ What happens:</strong></p>
+                    <ul>
+                        <li><strong>Image:</strong> OCR extracts text, diagrams are detected, single LaTeX generated</li>
+                        <li><strong>PDF:</strong> Pages are extracted, questions auto-detected, each gets its own LaTeX</li>
+                        <li><strong>Result:</strong> Full LaTeX with correct image paths, ready to use</li>
+                    </ul>
+                </div>
+            </form>
+        </section>
+    </main>
+
+    <script>
+        window.addEventListener('DOMContentLoaded', () => {
+            const fileInput = document.getElementById('fileInput');
+            const imagePreview = document.getElementById('imagePreview');
+            const pdfPreview = document.getElementById('pdfPreview');
+            const pdfFileName = document.getElementById('pdfFileName');
+            const previewText = document.getElementById('previewText');
+            const diagramSection = document.getElementById('diagramSection');
+            const diagramInput = document.getElementById('diagramInput');
+            const diagramPreviewImage = document.getElementById('diagramPreviewImage');
+
+            function resetPreview() {
+                imagePreview.style.display = 'none';
+                pdfPreview.style.display = 'none';
+                diagramSection.style.display = 'none';
+                previewText.style.display = 'block';
+                previewText.textContent = 'Choose a PNG, JPG, JPEG image or PDF to see details here.';
+            }
+
+            fileInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (!file) {
+                    resetPreview();
+                    return;
+                }
+
+                const fileSize = (file.size / 1024 / 1024).toFixed(2);
+                const fileLabel = `${file.name} (${fileSize} MB)`;
+
+                if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+                    imagePreview.style.display = 'none';
+                    pdfPreview.style.display = 'flex';
+                    pdfFileName.textContent = fileLabel;
+                    previewText.style.display = 'none';
+                    diagramSection.style.display = 'none';
+                } else if (file.type.startsWith('image/') || file.name.toLowerCase().match(/\.(png|jpg|jpeg)$/i)) {
+                    pdfPreview.style.display = 'none';
+                    diagramSection.style.display = 'block';
+                    previewText.style.display = 'none';
+
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        imagePreview.src = event.target.result;
+                        imagePreview.style.display = 'block';
+                    };
+                    reader.readAsDataURL(file);
+
+                    pdfFileName.textContent = fileLabel;
+                } else {
+                    resetPreview();
+                    previewText.textContent = '❌ Invalid file type. Please upload PNG, JPG, JPEG, or PDF.';
+                }
+            });
+
+            if (diagramInput) {
+                diagramInput.addEventListener('change', (e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (event) => {
+                            diagramPreviewImage.src = event.target.result;
+                            diagramPreviewImage.style.display = 'block';
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>

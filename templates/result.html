@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>LaTeX Result</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <main class="page">
+        <section class="result-layout">
+            <div class="result-header">
+                <div>
+                    <p class="eyebrow">Generated output</p>
+                    <h1>Edit and download your LaTeX.</h1>
+                </div>
+                <a class="link-button" href="{{ url_for('index') }}">New upload</a>
+            </div>
+
+            {% if errors %}
+                <div class="notice">
+                    {% for error in errors %}
+                        <p>{{ error }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            {% if history_error %}
+                <div class="notice warning">
+                    <p>{{ history_error }}</p>
+                </div>
+            {% endif %}
+
+            <div class="columns">
+                <aside class="source-panel">
+                    <h2>Source</h2>
+                    {% if image_url %}
+                        <img class="source-image" src="{{ image_url }}" alt="Uploaded source">
+                    {% else %}
+                        <p>The question image was used for OCR and removed after processing.</p>
+                    {% endif %}
+
+                    {% if diagram_url %}
+                        <h3>Separate diagram</h3>
+                        <img class="source-image" src="{{ diagram_url }}" alt="Uploaded diagram">
+                    {% endif %}
+
+                    <h3>Extracted text</h3>
+                    <pre>{{ extracted_text or "No text detected." }}</pre>
+
+                    <h3>Detected equations</h3>
+                    {% if equations %}
+                        <ul>
+                            {% for equation in equations %}
+                                <li><code>{{ equation }}</code></li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p>No equations detected.</p>
+                    {% endif %}
+                </aside>
+
+                <section class="editor-panel">
+                    <div class="editor-actions">
+                        <button id="previewButton" type="button">Preview readable text</button>
+                        <button id="copyButton" type="button">Copy LaTeX</button>
+                        <a class="link-button" href="{{ url_for('download_file', filename=output_name) }}">Download .tex</a>
+                    </div>
+                    <textarea id="latexOutput" spellcheck="false">{{ latex_output }}</textarea>
+                    <div id="readablePreview" class="readable-preview" hidden>
+                        <div class="preview-title">
+                            <h2>Readable preview</h2>
+                            <p>Generated from the current LaTeX editor content.</p>
+                        </div>
+                        <div id="previewContent" class="preview-content"></div>
+                    </div>
+                </section>
+            </div>
+        </section>
+    </main>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
