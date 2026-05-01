@@ -48,20 +48,21 @@
                         <aside class="question-source">
                             <h3>Extracted Text</h3>
                             <pre>{{ question.text }}</pre>
-
-                            {% if question.diagrams %}
-                            <h3>Diagrams ({{ question.diagrams|length }})</h3>
-                            <div class="diagrams-grid">
-                                {% for diagram in question.diagrams %}
-                                <div class="diagram-item">
-                                    <img src="{{ url_for('static', filename=diagram) }}" 
-                                         alt="Diagram {{ loop.index }}" 
-                                         class="question-diagram">
-                                </div>
-                                {% endfor %}
-                            </div>
-                            {% endif %}
                         </aside>
+
+                        <!-- Diagrams in the middle, after question text, before options -->
+                        {% if question.diagrams %}
+                        <div class="diagrams-grid" style="margin-bottom: 1.5rem; grid-column: 1 / -1;">
+                            <h3 style="grid-column: 1 / -1;">Diagrams ({{ question.diagrams|length }})</h3>
+                            {% for diagram in question.diagrams %}
+                            <div class="diagram-item">
+                                <img src="{{ url_for('static', filename=diagram) }}" 
+                                     alt="Diagram {{ loop.index }}" 
+                                     class="question-diagram">
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
 
                         <!-- Right: LaTeX Output -->
                         <section class="question-editor">

@@ -12,7 +12,7 @@
             <div class="result-header">
                 <div>
                     <p class="eyebrow">Generated output</p>
-                    <h1>Edit and download your LaTeX.</h1>
+                    <h1>Edit and open your LaTeX folder.</h1>
                 </div>
                 <a class="link-button" href="{{ url_for('index') }}">New upload</a>
             </div>
@@ -30,6 +30,10 @@
                     <p>{{ history_error }}</p>
                 </div>
             {% endif %}
+
+            <div class="notice">
+                <p>Your files are saved as a normal folder: <code>{{ project_path }}</code>. Open <code>main.tex</code> from that folder in TeXstudio so the sibling <code>images/</code> folder is available.</p>
+            </div>
 
             <div class="columns">
                 <aside class="source-panel">
@@ -64,7 +68,7 @@
                     <div class="editor-actions">
                         <button id="previewButton" type="button">Preview readable text</button>
                         <button id="copyButton" type="button">Copy LaTeX</button>
-                        <a class="link-button" href="{{ url_for('download_file', filename=output_name) }}">Download .tex</a>
+                        <a class="link-button" href="{{ url_for('download_file', filename=tex_download_name) }}">Download main.tex</a>
                     </div>
                     <textarea id="latexOutput" spellcheck="false">{{ latex_output }}</textarea>
                     <div id="readablePreview" class="readable-preview" hidden>
@@ -78,6 +82,9 @@
             </div>
         </section>
     </main>
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script>
+        window.outputAssetBase = "{{ url_for('output_asset', project_id=project_id, filename='') if project_id else '' }}";
+    </script>
+    <script src="{{ url_for('static', filename='js/main.js', v='20260429_omega') }}"></script>
 </body>
 </html>

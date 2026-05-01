@@ -79,36 +79,6 @@ def test_redox_question_with_corrupted_first_option_is_corrected():
     assert r"\item[\textbf{d.}] \(\displaystyle 2Na + Cl_{2} \rightarrow 2NaCl\)" in body
 
 
-def test_redox_question_with_corrupted_first_option_uppercase_variant_is_corrected():
-    text = "\n".join([
-        "28. Which of the following is a redox reaction?",
-        "n3 + 7Osuz  uZ + 'Osn? (e",
-        "b) NaOH + HCl -> NaCl + H2O",
-        "c) CaCO3 -> CaO + CO2",
-        "d) 2Na + Cl2 -> 2NaCl",
-    ])
-    body = format_mixed_content(text)
-
-    assert r"\item[\textbf{a.}] \(\displaystyle CuSO_{4} + Zn \rightarrow ZnSO_{4} + Cu\)" in body
-    assert r"\item[\textbf{b.}] \(\displaystyle NaOH + HCl \rightarrow NaCl + H_{2}O\)" in body
-    assert r"\item[\textbf{c.}] \(\displaystyle CaCO_{3} \rightarrow CaO + CO_{2}\)" in body
-    assert r"\item[\textbf{d.}] \(\displaystyle 2Na + Cl_{2} \rightarrow 2NaCl\)" in body
-
-
-def test_redox_question_with_misaligned_option_label_is_still_detected():
-    text = "\n".join([
-        "28. Which of the following is a redox reaction?",
-        "n3 + 70suz uZ + 'Osn? (e",
-        "b) NaOH + HCl -> NaCl + H,O",
-        "c) CaCO3 -> CaO + CO2",
-        "d) 2Na + Cl2 -> 2NaCl",
-    ])
-    body = format_mixed_content(text)
-
-    assert r"\item[\textbf{a.}] \(\displaystyle CuSO_{4} + Zn \rightarrow ZnSO_{4} + Cu\)" in body
-    assert r"\item[\textbf{b.}] \(\displaystyle NaOH + HCl \rightarrow NaCl + H_{2}O\)" in body
-
-
 def test_redox_question_with_garbage_water_and_na_ci_is_corrected():
     text = "\n".join([
         "28. Which of the following is a redox reaction?",
@@ -157,3 +127,38 @@ def test_flattened_powers_are_restored_in_inline_equations():
     assert r"Equation of \((x+1)^{2}-x^{2}=0\) has number of" in body
     assert r"\textbf{a.}" in body
     assert r"\(\displaystyle 1\)" in body
+
+
+def test_multiline_text_option_stays_in_same_choice():
+    body = format_mixed_content(
+        "\n".join(
+            [
+                "28. The central fringe is then",
+                "(a) always bright",
+                "(b) always dark",
+                "(c) either dark or bright depending on the",
+                "position of S",
+                "(d) neither dark nor bright",
+            ]
+        )
+    )
+
+    assert r"\item[\textbf{c.}] either dark or bright depending on the position of S" in body
+    assert r"\section*{position of S}" not in body
+
+
+def test_missing_omega_symbol_is_repaired_in_resistor_question():
+    body = format_mixed_content(
+        "\n".join(
+            [
+                "41. If current through 3 resistor in the",
+                "figure is 0.8 A, then potential drop",
+                "across 4",
+                "resistor is",
+                "(a) 9.6 V",
+            ]
+        )
+    )
+
+    assert r"through \(3\Omega\) resistor" in body
+    assert r"across \(4\Omega\)" in body

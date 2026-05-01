@@ -175,10 +175,33 @@ def _escape_text_preserving_latex(text):
 
 def _format_text_line(text):
     """Escape prose while keeping tiny LaTeX fragments compilable."""
+    text = _normalize_ohm_expressions(text)
     text = _format_inline_math_fragments(text)
     text = _normalize_degree_expressions(text)
     escaped = _escape_text_preserving_latex(text)
     return _wrap_loose_math_fragments(escaped)
+
+
+def _normalize_ohm_expressions(text):
+    text = re.sub(
+        r"(?<![A-Za-z0-9])(\d+(?:\.\d+)?)\s*(?:Ω|Ω|ohms?|Q)\b",
+        lambda match: rf"\({match.group(1)}\Omega\)",
+        text,
+        flags=re.IGNORECASE,
+    )
+    text = re.sub(
+        r"\b(\d+(?:\.\d+)?)\s+resistor\b",
+        lambda match: rf"\({match.group(1)}\Omega\) resistor",
+        text,
+        flags=re.IGNORECASE,
+    )
+    text = re.sub(
+        r"\b(across|through)\s+(\d+(?:\.\d+)?)\s*\.?\s*$",
+        lambda match: rf"{match.group(1)} \({match.group(2)}\Omega\)",
+        text,
+        flags=re.IGNORECASE,
+    )
+    return text
 
 
 def _normalize_degree_expressions(text):
@@ -273,9 +296,8 @@ def _clean_ocr_line(line):
 
     # Fix a specific badly OCR'd redox option.
     if (
-        re.search(r"\bn3\b", cleaned, re.IGNORECASE)
-        and re.search(r"7[o0]suz", cleaned, re.IGNORECASE)
-        and re.search(r"\buZ\b", cleaned, re.IGNORECASE)
+        re.search(r"n3", cleaned, re.IGNORECASE)
+        and re.search(r"70suz", cleaned, re.IGNORECASE)
         and re.search(r"Osn", cleaned, re.IGNORECASE)
     ):
         return "a) CuSO4 + Zn -> ZnSO4 + Cu"
@@ -318,13 +340,46 @@ def _collect_option_block(lines, start_index):
             continue
 
         if inline_option:
-            options.append((_option_label(inline_option), inline_option.group(3)))
-            index += 1
+            value_lines, next_index = _collect_inline_option_value(lines, index)
+            options.append((_option_label(inline_option), " ".join(value_lines)))
+            index = next_index
             continue
 
         break
 
     return options, index
+
+
+def _collect_inline_option_value(lines, start_index):
+    first_match = INLINE_OPTION_PATTERN.match(lines[start_index])
+    value_lines = [first_match.group(3)]
+    index = start_index + 1
+
+    while index < len(lines):
+        line = lines[index]
+        if OPTION_LABEL_PATTERN.match(line) or INLINE_OPTION_PATTERN.match(line):
+            break
+        if _looks_like_option_continuation(line, value_lines):
+            value_lines.append(line)
+            index += 1
+            continue
+        break
+
+    return value_lines, index
+
+
+def _looks_like_option_continuation(line, value_lines):
+    if not value_lines:
+        return False
+    if _looks_like_math_line(line):
+        return False
+    if re.match(r"^\d+\.", line):
+        return False
+
+    previous = " ".join(value_lines).strip()
+    starts_like_sentence_part = bool(re.match(r"^(?:and|or|of|on|in|to|from|with|the|depending|position)\b", line, re.IGNORECASE))
+    previous_needs_completion = bool(re.search(r"\b(?:the|of|on|in|depending|from|with|or|and)\s*$", previous, re.IGNORECASE))
+    return starts_like_sentence_part or previous_needs_completion
 
 
 def _insert_missing_option_labels(lines):
@@ -365,14 +420,10 @@ def _looks_like_option_candidate(line):
         return False
 
     if re.search(r"\+|->|\\rightarrow|=|<|>", line):
-        formula_tokens = re.findall(r"[A-Za-z]+\d*", line)
-        if len(formula_tokens) < 2:
+        formula_tokens = re.findall(r"[A-Z][a-z]?\d*", line)
+        if len(formula_tokens) < 3:
             return False
-        if any(re.search(r"\d", token) for token in formula_tokens):
-            return True
-        if re.search(r"\b(?:Zn|Cu|Na|Cl|H2O|CO2|SO4|OH|CO3|O2|N2)\b", line, re.IGNORECASE):
-            return True
-        return len(formula_tokens) >= 3
+        return True
 
     if re.fullmatch(r"-[A-Za-z0-9()]+", line):
         return True

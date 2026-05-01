@@ -92,7 +92,7 @@ function latexToReadableHtml(latex) {
             continue;
         }
 
-        const item = line.match(/^\\item\[\s*\\textbf\{([^}]+)\}\s*\]\s*(.+)$/);
+        const item = line.match(/^\\item\[\\textbf\{([^}]+)\}\]\s*(.+)$/);
         if (item) {
             html.push(optionToHtml(item[1], item[2]));
             continue;
@@ -121,9 +121,13 @@ function latexToReadableHtml(latex) {
 }
 
 function imageToHtml(source) {
-    const imageSource = source
+    let imageSource = source
         .replace(/^(\.\.\/)+uploads\//, "/uploads/")
         .replace(/^uploads\//, "/uploads/");
+
+    if (/^images\//.test(imageSource) && window.outputAssetBase) {
+        imageSource = `${window.outputAssetBase}${imageSource}`;
+    }
 
     return [
         '<div class="preview-image-wrap">',
@@ -192,6 +196,8 @@ function mathToHtml(rawMath) {
         .replace(/\\circ/g, "°")
         .replace(/\\pm/g, "±")
         .replace(/\\times/g, "×")
+        .replace(/\\Omega/g, "\u03A9")
+        .replace(/\\omega/g, "\u03C9")
         .replace(/\\leq/g, "≤")
         .replace(/\\geq/g, "≥")
         .replace(/\\neq/g, "≠")
@@ -211,6 +217,8 @@ function mathToHtml(rawMath) {
         .replace(/_([A-Za-z0-9])/g, "<sub>$1</sub>")
         .replace(/\\times/g, "×")
         .replace(/\\rightarrow/g, "→")
+        .replace(/\\Omega/g, "\u03A9")
+        .replace(/\\omega/g, "\u03C9")
         .replace(/\\(?:mathrm|text)\{([^{}]+)\}/g, "$1")
         .replace(/\\[A-Za-z]+/g, "");
 
