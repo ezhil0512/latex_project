@@ -63,6 +63,7 @@ function latexToReadableHtml(latex) {
     const blocks = extractDisplayMathBlocks(body);
     const lines = blocks.text.split(/\r?\n/);
     const html = [];
+    let pendingOptionLabel = null;
 
     for (const rawLine of lines) {
         const line = rawLine.trim();
@@ -77,11 +78,18 @@ function latexToReadableHtml(latex) {
 
         const image = line.match(/^\\includegraphics(?:\[[^\]]*\])?\{(.+)\}$/);
         if (image) {
-            html.push(imageToHtml(image[1]));
+            if (pendingOptionLabel) {
+                html.push(optionToHtml(pendingOptionLabel, imageToHtml(image[1], true)));
+                pendingOptionLabel = null;
+            } else {
+                html.push(imageToHtml(image[1]));
+            }
             continue;
         }
 
         if (blocks.display[line]) {
+            flushPendingOption(html, pendingOptionLabel);
+            pendingOptionLabel = null;
             html.push(`<div class="preview-display-math">${mathToHtml(blocks.display[line])}</div>`);
             continue;
         }
@@ -94,24 +102,41 @@ function latexToReadableHtml(latex) {
 
         const item = line.match(/^\\item\[\\textbf\{([^}]+)\}\]\s*(.+)$/);
         if (item) {
+            flushPendingOption(html, pendingOptionLabel);
+            pendingOptionLabel = null;
             html.push(optionToHtml(item[1], item[2]));
+            continue;
+        }
+
+        const itemOnly = line.match(/^\\item\[\\textbf\{([^}]+)\}\]\s*$/);
+        if (itemOnly) {
+            flushPendingOption(html, pendingOptionLabel);
+            pendingOptionLabel = itemOnly[1];
             continue;
         }
 
         const noIndentOption = line.match(/^\\noindent\\textbf\{([^}]+)\}\\quad\s*(.+)$/);
         if (noIndentOption) {
+            flushPendingOption(html, pendingOptionLabel);
+            pendingOptionLabel = null;
             html.push(optionToHtml(noIndentOption[1], noIndentOption[2]));
             continue;
         }
 
         const simpleOption = line.match(/^\\textbf\{([^}]+)\}\s*(.+)$/);
         if (simpleOption) {
+            flushPendingOption(html, pendingOptionLabel);
+            pendingOptionLabel = null;
             html.push(optionToHtml(simpleOption[1], simpleOption[2]));
             continue;
         }
 
+        flushPendingOption(html, pendingOptionLabel);
+        pendingOptionLabel = null;
         html.push(`<p>${inlineLatexToHtml(line)}</p>`);
     }
+
+    flushPendingOption(html, pendingOptionLabel);
 
     if (!html.length) {
         return "<p>No readable content found in the current LaTeX.</p>";
@@ -120,7 +145,13 @@ function latexToReadableHtml(latex) {
     return html.join("");
 }
 
-function imageToHtml(source) {
+function flushPendingOption(html, label) {
+    if (label) {
+        html.push(optionToHtml(label, ""));
+    }
+}
+
+function imageToHtml(source, inline = false) {
     let imageSource = source
         .replace(/^(\.\.\/)+uploads\//, "/uploads/")
         .replace(/^uploads\//, "/uploads/");
@@ -130,7 +161,7 @@ function imageToHtml(source) {
     }
 
     return [
-        '<div class="preview-image-wrap">',
+        `<div class="preview-image-wrap${inline ? " preview-image-wrap-inline" : ""}">`,
         `<img class="preview-image" src="${escapeHtml(imageSource)}" alt="Question diagram">`,
         "</div>",
     ].join("");
@@ -161,7 +192,7 @@ function optionToHtml(label, value) {
     return [
         '<div class="preview-option">',
         `<span class="preview-option-label">${normalizeOptionLabel(label)}</span>`,
-        `<span>${inlineLatexToHtml(value)}</span>`,
+        `<span>${value.includes("<") ? value : inlineLatexToHtml(value)}</span>`,
         "</div>",
     ].join("");
 }

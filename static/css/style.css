@@ -304,7 +304,8 @@ code {
 
 .preview-image {
     display: block;
-    width: min(340px, 100%);
+    width: auto;
+    max-width: min(340px, 100%);
     max-height: 420px;
     object-fit: contain;
 }
@@ -315,11 +316,16 @@ code {
     margin: 4px 0;
 }
 
+.preview-image-wrap-inline {
+    justify-content: flex-start;
+    margin: 0;
+}
+
 .preview-option {
     display: grid;
     grid-template-columns: 42px minmax(0, 1fr);
     gap: 12px;
-    align-items: center;
+    align-items: start;
     max-width: 620px;
 }
 
@@ -555,4 +561,3 @@ code {
         font-size: 0.85rem;
     }
 }
-
