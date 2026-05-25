@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>LaTeX Result</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css', v='20260519_tight_crops') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
     <main class="page">
@@ -16,16 +16,6 @@
                 </div>
                 <a class="link-button" href="{{ url_for('index') }}">New upload</a>
             </div>
-
-            {% with messages = get_flashed_messages() %}
-                {% if messages %}
-                    <div class="notice">
-                        {% for message in messages %}
-                            <p>{{ message }}</p>
-                        {% endfor %}
-                    </div>
-                {% endif %}
-            {% endwith %}
 
             {% if errors %}
                 <div class="notice">
@@ -54,23 +44,9 @@
                         <p>The question image was used for OCR and removed after processing.</p>
                     {% endif %}
 
-                    {% if diagram_urls %}
-                        <h3>Detected diagrams</h3>
-                        {% for detected_diagram_url in diagram_urls %}
-                            <img class="source-image" src="{{ detected_diagram_url }}" alt="Detected diagram {{ loop.index }}">
-                        {% endfor %}
-                    {% elif diagram_url %}
-                        <h3>Detected diagram</h3>
-                        <img class="source-image" src="{{ diagram_url }}" alt="Detected diagram">
-                    {% endif %}
-
-                    {% if diagram_manifest %}
-                        <h3>Diagram mapping</h3>
-                        <ul>
-                            {% for diagram in diagram_manifest %}
-                                <li><code>{{ diagram.diagram_id }}</code> {{ diagram.associated_question }}</li>
-                            {% endfor %}
-                        </ul>
+                    {% if diagram_url %}
+                        <h3>Separate diagram</h3>
+                        <img class="source-image" src="{{ diagram_url }}" alt="Uploaded diagram">
                     {% endif %}
 
                     <h3>Extracted text</h3>
@@ -88,15 +64,13 @@
                     {% endif %}
                 </aside>
 
-                <form class="editor-panel" method="post" action="{{ url_for('download_package', project_id=project_id) }}">
+                <section class="editor-panel">
                     <div class="editor-actions">
                         <button id="previewButton" type="button">Preview readable text</button>
                         <button id="copyButton" type="button">Copy LaTeX</button>
-                        <button type="submit" formaction="{{ url_for('save_project', project_id=project_id) }}">Save changes</button>
-                        <button type="submit" formaction="{{ url_for('open_project', project_id=project_id) }}">Open folder</button>
-                        <button class="link-button" type="submit">Download ZIP package</button>
+                        <a class="link-button" href="{{ url_for('download_file', filename=tex_download_name) }}">Download main.tex</a>
                     </div>
-                    <textarea id="latexOutput" name="latex_output" spellcheck="false">{{ latex_output }}</textarea>
+                    <textarea id="latexOutput" spellcheck="false">{{ latex_output }}</textarea>
                     <div id="readablePreview" class="readable-preview" hidden>
                         <div class="preview-title">
                             <h2>Readable preview</h2>
@@ -104,13 +78,13 @@
                         </div>
                         <div id="previewContent" class="preview-content"></div>
                     </div>
-                </form>
+                </section>
             </div>
         </section>
     </main>
     <script>
         window.outputAssetBase = "{{ url_for('output_asset', project_id=project_id, filename='') if project_id else '' }}";
     </script>
-    <script src="{{ url_for('static', filename='js/main.js', v='20260519_option_preview') }}"></script>
+    <script src="{{ url_for('static', filename='js/main.js', v='20260429_omega') }}"></script>
 </body>
 </html>

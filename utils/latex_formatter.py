@@ -240,7 +240,6 @@ def _format_ocr_lines(lines):
     cleaned_lines = [line for line in cleaned_lines if line]
     cleaned_lines = _insert_missing_option_labels(cleaned_lines)
     index = 0
-    context_lines = []
 
     while index < len(cleaned_lines):
         line = cleaned_lines[index]
@@ -249,12 +248,11 @@ def _format_ocr_lines(lines):
 
         if option or inline_option:
             options, next_index = _collect_option_block(cleaned_lines, index)
-            context = "\n".join(context_lines[-8:])
             if len(options) > 1:
-                formatted.append(_format_option_block(options, context))
+                formatted.append(_format_option_block(options))
             elif options:
                 label, value = options[0]
-                formatted.append(_format_option(label, value, context))
+                formatted.append(_format_option(label, value))
             index = next_index
             continue
 
@@ -262,7 +260,6 @@ def _format_ocr_lines(lines):
             index += 1
             continue
 
-        context_lines.append(line)
         if _looks_like_math_line(line):
             formatted.append(_as_display_math(_format_math_expression(line)))
         elif _looks_like_heading(line):
@@ -292,11 +289,6 @@ def _clean_ocr_line(line):
     cleaned = re.sub(r"(?i)^\s*o0\s*\(?p\)?\s*$", "d) 0°", cleaned)
     cleaned = re.sub(r"\(p\)", "°", cleaned, flags=re.IGNORECASE)
     cleaned = re.sub(r"\(p", "°", cleaned, flags=re.IGNORECASE)
-
-    # Repair a common physics OCR failure: "(a) 5 x 10^-7 T" becomes
-    # fragments such as "[a} 5XiU :1".
-    if re.search(r"^[\[\(]?\s*a\s*[\}\)\]]", cleaned, re.IGNORECASE) and re.search(r"5\s*x?i?u", cleaned, re.IGNORECASE):
-        return "a) 5 x 10-7 T"
 
     # Fix common chemistry OCR misreads.
     cleaned = re.sub(r"\bH,O\b", "H2O", cleaned)
@@ -487,37 +479,18 @@ def _option_value_complete(value):
     return False
 
 
-def _format_option(label, value, context=""):
-    formatted_value = _format_option_value(value, context)
+def _format_option(label, value):
+    formatted_value = _format_option_value(value)
     return rf"\noindent\textbf{{{label.lower()}.}}\quad {formatted_value}"
 
 
-def _format_option_value(value, context=""):
-    value = _normalize_physics_option_units(value, context)
+def _format_option_value(value):
     if _looks_like_degree_expression(value):
         return rf"\(\displaystyle {_format_degree_expression(value)}\)"
-    if _looks_like_math_line(value) or re.match(r"^\s*[-+]?\d+(?:\.\d+)?\\Omega\s*$", value) or re.fullmatch(r"[-+]?\d+(?:\.\d+)?", value):
+    if _looks_like_math_line(value) or re.fullmatch(r"[-+]?\d+(?:\.\d+)?", value):
         expression = _format_math_expression(value)
         return rf"\(\displaystyle {expression}\)"
-    return _escape_text_preserving_latex(_normalize_ohm_expressions(value))
-
-
-def _normalize_physics_option_units(value, context=""):
-    normalized_context = context.lower()
-    if "resistance" not in normalized_context and "resistor" not in normalized_context:
-        return value
-
-    clean_value = value.strip()
-    if re.search(r"(?:\\Omega|Î©|â„¦|ohms?)", clean_value, re.IGNORECASE):
-        return clean_value
-    if re.fullmatch(r"\d+(?:\.\d+)?", clean_value):
-        return rf"{clean_value}\Omega"
-    return re.sub(
-        r"\b(greater than|less than)\s+(\d+(?:\.\d+)?)\b",
-        lambda match: rf"{match.group(1)} \({match.group(2)}\Omega\)",
-        clean_value,
-        flags=re.IGNORECASE,
-    )
+    return _escape_text_preserving_latex(value)
 
 
 def _looks_like_degree_expression(value):
@@ -528,10 +501,10 @@ def _format_degree_expression(value):
     return re.sub(r"\s*[oO°º]\s*$", r"^{\\circ}", value.strip())
 
 
-def _format_option_block(options, context=""):
+def _format_option_block(options):
     lines = [r"\begin{description}[leftmargin=1.6em,style=nextline]"]
     for label, value in options:
-        lines.append(rf"\item[\textbf{{{label.lower()}.}}] {_format_option_value(value, context)}")
+        lines.append(rf"\item[\textbf{{{label.lower()}.}}] {_format_option_value(value)}")
     lines.append(r"\end{description}")
     return "\n".join(lines)
 
@@ -543,8 +516,6 @@ def _looks_like_math_line(line):
         else:
             return False
     if MATH_HINT_PATTERN.search(line):
-        return True
-    if re.search(r"\b\d+(?:\.\d+)?\s*(?:x|\\times)?\s*10\s*-\s*\d+\s*[A-Za-z]?\b", line, re.IGNORECASE):
         return True
     # Only treat lowercase prose words as sentence indicators; uppercase chemical
     # formulas like NaOH should remain eligible for math formatting.
@@ -582,7 +553,6 @@ def _format_math_expression(expression):
     formatted = expression.strip()
     formatted = formatted.replace("\u00d7", r" \times ")
     formatted = re.sub(r"(?<=\d)\s*x\s*(?=\d)", r" \\times ", formatted, flags=re.IGNORECASE)
-    formatted = _format_scientific_notation(formatted)
     formatted = re.sub(r"\s*->\s*", r" \\rightarrow ", formatted)
     formatted = re.sub(r"(?<!\\)>\s*", r" \\rightarrow ", formatted)
     formatted = _format_flattened_powers(formatted)
@@ -590,15 +560,6 @@ def _format_math_expression(expression):
     formatted = _format_common_fractions(formatted)
     formatted = re.sub(r"\s+", " ", formatted)
     return formatted
-
-
-def _format_scientific_notation(expression):
-    return re.sub(
-        r"\b(\d+(?:\.\d+)?)\s*(?:x|\\times)?\s*10\s*-\s*(\d+)",
-        lambda match: rf"{match.group(1)} \times 10^{{-{match.group(2)}}}",
-        expression,
-        flags=re.IGNORECASE,
-    )
 
 
 def _format_flattened_powers(expression):

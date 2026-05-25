@@ -153,7 +153,7 @@ class DiagramExtractor:
         
         return False
 
-    def extract_diagram(self, bbox: Tuple, output_dir: str, refine: bool = True) -> str:
+    def extract_diagram(self, bbox: Tuple, output_dir: str) -> str:
         """
         Extract and save a specific diagram region.
         
@@ -164,7 +164,7 @@ class DiagramExtractor:
         Returns:
             Path to saved diagram file
         """
-        x, y, w, h = self._refine_diagram_bbox(bbox) if refine else [int(value) for value in bbox]
+        x, y, w, h = self._refine_diagram_bbox(bbox)
         diagram = self.image[y:y+h, x:x+w]
         
         if diagram.size == 0:
@@ -184,33 +184,6 @@ class DiagramExtractor:
         Save a copy of the source image with the detected diagram removed.
         This keeps diagram labels from being read as normal question text.
         """
-        return self.save_text_only_image_for_bboxes([bbox], output_path)
-
-    def save_text_only_image_for_bboxes(self, bboxes: List[Tuple], output_path: str, refine: bool = True) -> str:
-        """
-        Save a copy of the source image with all detected diagrams removed.
-        This is used for multi-question pages where each figure should be
-        cropped once but excluded from text OCR.
-        """
-        text_only = self.image.copy()
-
-        for bbox in bboxes:
-            x, y, w, h = self._refine_diagram_bbox(bbox) if refine else [int(value) for value in bbox]
-            padding = max(3, int(min(self.width, self.height) * 0.01))
-            left = max(0, x - padding)
-            top = max(0, y - padding)
-            right = min(self.width, x + w + padding)
-            bottom = min(self.height, y + h + padding)
-            cv2.rectangle(text_only, (left, top), (right, bottom), (255, 255, 255), -1)
-
-        Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-        success = cv2.imwrite(str(output_path), text_only)
-        if not success:
-            raise IOError(f"Failed to save image to {output_path}")
-
-        return str(output_path)
-
-    def _save_text_only_image_for_single_bbox(self, bbox: Tuple, output_path: str) -> str:
         x, y, w, h = self._refine_diagram_bbox(bbox)
         padding = max(3, int(min(self.width, self.height) * 0.01))
         left = max(0, x - padding)
@@ -245,13 +218,9 @@ class DiagramExtractor:
         if refined is None:
             refined = self._bbox_from_line_art(left, top, right, bottom, (x, y, w, h))
         if refined is None:
-            refined = (left, top, right - left, bottom - top)
+            return left, top, right - left, bottom - top
         refined = self._trim_neighboring_text(refined, (x, y, w, h))
-        refined = self._add_tight_padding(refined)
-        refined = self._include_left_edge_ink(refined)
-        refined = self._trim_left_option_marker(refined)
-        refined = self._trim_separated_bottom_text(refined)
-        return self._trim_blank_margins(refined)
+        return self._add_tight_padding(refined)
 
     def _trim_neighboring_text(self, bbox: Tuple, seed_bbox: Tuple) -> Tuple:
         x, y, w, h = [int(value) for value in bbox]
@@ -423,174 +392,6 @@ class DiagramExtractor:
             max(1, bottom - top),
         )
 
-    def _trim_separated_bottom_text(self, bbox: Tuple) -> Tuple:
-        """
-        Remove answer text accidentally caught below a diagram. This is a
-        final pass after padding, so it only trims a separated ink band near
-        the lower edge and leaves connected diagram labels intact.
-        """
-        x, y, w, h = [int(value) for value in bbox]
-        roi = self.gray[y:y + h, x:x + w]
-        if roi.size == 0:
-            return bbox
-
-        dark = cv2.threshold(roi, 220, 255, cv2.THRESH_BINARY_INV)[1]
-        row_counts = np.sum(dark > 0, axis=1)
-        ink_threshold = max(4, int(w * 0.015))
-        ink_rows = row_counts > ink_threshold
-        bands = self._row_bands(ink_rows)
-        if len(bands) < 2:
-            return bbox
-
-        last_start, last_end = bands[-1]
-        prev_start, prev_end = bands[-2]
-        gap = last_start - prev_end
-        last_height = last_end - last_start + 1
-        near_bottom = last_end >= h - max(3, int(self.height * 0.012))
-        separated = gap >= max(8, int(self.height * 0.018))
-        small_band = last_height <= max(18, int(self.height * 0.04))
-        lower_part = last_start >= h * 0.70
-
-        if near_bottom and separated and small_band and lower_part:
-            new_bottom = max(1, last_start - max(3, int(self.height * 0.008)))
-            return x, y, w, new_bottom
-        return bbox
-
-    def _include_left_edge_ink(self, bbox: Tuple) -> Tuple:
-        """
-        If the crop begins through a left-side substituent such as O2N,
-        expand left to include the connected ink that touches the edge.
-        """
-        x, y, w, h = [int(value) for value in bbox]
-        if x <= 0:
-            return bbox
-
-        margin = min(x, max(12, int(self.width * 0.035)))
-        expanded_left = x - margin
-        roi = self.gray[y:y + h, expanded_left:x + w]
-        if roi.size == 0:
-            return bbox
-
-        dark = cv2.threshold(roi, 220, 255, cv2.THRESH_BINARY_INV)[1]
-        component_count, _labels, stats, _centroids = cv2.connectedComponentsWithStats(dark, 8)
-        crop_left = x - expanded_left
-        new_left = x
-
-        for component_id in range(1, component_count):
-            cx, cy, cw, ch, area = [int(value) for value in stats[component_id]]
-            if area < 4:
-                continue
-            right = cx + cw
-            touches_crop_edge = cx < crop_left and right >= crop_left - 1
-            overlaps_middle = cy + ch >= h * 0.18 and cy <= h * 0.82
-            if touches_crop_edge and overlaps_middle:
-                new_left = min(new_left, expanded_left + cx)
-
-        if new_left >= x:
-            return bbox
-
-        pad = max(3, int(self.width * 0.006))
-        new_left = max(0, new_left - pad)
-        right = x + w
-        return new_left, y, right - new_left, h
-
-    def _trim_left_option_marker(self, bbox: Tuple) -> Tuple:
-        """
-        Move the crop start past isolated option-label fragments such as a
-        stray ")" while keeping real left-side chemistry labels like O2N.
-        """
-        x, y, w, h = [int(value) for value in bbox]
-        roi = self.gray[y:y + h, x:x + w]
-        if roi.size == 0:
-            return bbox
-
-        dark = cv2.threshold(roi, 220, 255, cv2.THRESH_BINARY_INV)[1]
-        component_count, _labels, stats, _centroids = cv2.connectedComponentsWithStats(dark, 8)
-        marker_right = None
-        content_left = None
-
-        components = sorted(
-            ([int(value) for value in stats[component_id]] for component_id in range(1, component_count)),
-            key=lambda item: item[0],
-        )
-        for cx, cy, cw, ch, area in components:
-            if area < 4:
-                continue
-            if self._looks_like_left_option_marker_part(cx, cy, cw, ch, area, w, h):
-                right = cx + cw
-                marker_right = right if marker_right is None else max(marker_right, right)
-                continue
-
-            if marker_right is None:
-                return bbox
-
-            if cx > marker_right:
-                content_left = cx
-                break
-
-        if marker_right is None or content_left is None:
-            return bbox
-
-        gap = content_left - marker_right
-        if gap < max(2, int(w * 0.015)):
-            return bbox
-
-        pad = max(2, int(w * 0.015))
-        new_left = x + max(0, content_left - pad)
-        right = x + w
-        if new_left <= x or new_left >= right:
-            return bbox
-        return new_left, y, right - new_left, h
-
-    def _looks_like_left_option_marker_part(self, x: int, y: int, w: int, h: int, area: int, crop_width: int, crop_height: int) -> bool:
-        if x > crop_width * 0.25:
-            return False
-        narrow = w <= max(4, int(crop_width * 0.045))
-        small = area <= crop_width * crop_height * 0.015
-        mid_or_lower = y + h >= crop_height * 0.25
-        return narrow and small and mid_or_lower
-
-    def _trim_blank_margins(self, bbox: Tuple) -> Tuple:
-        """
-        Tighten the final crop to visible ink after option labels and nearby
-        text have been removed. A small border is kept so the diagram does
-        not sit hard against the image edge.
-        """
-        x, y, w, h = [int(value) for value in bbox]
-        roi = self.gray[y:y + h, x:x + w]
-        if roi.size == 0:
-            return bbox
-
-        dark = cv2.threshold(roi, 235, 255, cv2.THRESH_BINARY_INV)[1]
-        rows = np.where(np.any(dark > 0, axis=1))[0]
-        cols = np.where(np.any(dark > 0, axis=0))[0]
-        if not len(rows) or not len(cols):
-            return bbox
-
-        pad_x = max(4, int(self.width * 0.008))
-        pad_y = max(4, int(self.height * 0.008))
-        left = max(0, x + int(cols.min()) - pad_x)
-        top = max(0, y + int(rows.min()) - pad_y)
-        right = min(self.width, x + int(cols.max()) + 1 + pad_x)
-        bottom = min(self.height, y + int(rows.max()) + 1 + pad_y)
-
-        if right <= left or bottom <= top:
-            return bbox
-        return left, top, right - left, bottom - top
-
-    def _row_bands(self, mask: np.ndarray) -> List[Tuple[int, int]]:
-        bands = []
-        start = None
-        for index, has_ink in enumerate(mask):
-            if has_ink and start is None:
-                start = index
-            elif not has_ink and start is not None:
-                bands.append((start, index - 1))
-                start = None
-        if start is not None:
-            bands.append((start, len(mask) - 1))
-        return bands
-
     def find_main_diagram(self) -> Dict:
         """
         Find the largest/main diagram in the image.
@@ -613,101 +414,6 @@ class DiagramExtractor:
         if fallback_region and self._includes_header_text(largest, fallback_region):
             return fallback_region
         return largest
-
-    def find_diagrams(self) -> List[Dict]:
-        """
-        Find all substantial diagrams on the page in reading order.
-
-        The raw contour detector often returns both a complete figure and
-        smaller nested pieces. This method refines each candidate, removes
-        nested duplicates, and returns separate figures such as a geometry
-        diagram plus a circuit diagram on the same page.
-        """
-        candidates = []
-        regions = self.separate_text_from_diagram()
-
-        for region in regions.get("diagram_regions", []):
-            refined_bbox = self._refine_diagram_bbox(region["bbox"])
-            candidates.append(
-                {
-                    "bbox": refined_bbox,
-                    "type": "diagram",
-                    "area": refined_bbox[2] * refined_bbox[3],
-                    "source": "contour",
-                    "refined": True,
-                }
-            )
-
-        for fallback in [self._find_structural_diagram_region()]:
-            if fallback:
-                refined_bbox = self._refine_diagram_bbox(fallback["bbox"])
-                candidates.append(
-                    {
-                        "bbox": refined_bbox,
-                        "type": "diagram",
-                        "area": refined_bbox[2] * refined_bbox[3],
-                        "source": fallback.get("fallback", "fallback"),
-                        "refined": True,
-                    }
-                )
-
-        candidates = [candidate for candidate in candidates if self._is_substantial_diagram(candidate)]
-        if not candidates:
-            fallback = self._find_right_side_ink_region()
-            if fallback:
-                refined_bbox = self._refine_diagram_bbox(fallback["bbox"])
-                fallback_candidate = {
-                    "bbox": refined_bbox,
-                    "type": "diagram",
-                    "area": refined_bbox[2] * refined_bbox[3],
-                    "source": fallback.get("fallback", "fallback"),
-                    "refined": True,
-                }
-                if self._is_substantial_diagram(fallback_candidate):
-                    candidates.append(fallback_candidate)
-        candidates = self._dedupe_diagram_candidates(candidates)
-        return sorted(candidates, key=lambda item: (item["bbox"][1], item["bbox"][0]))
-
-    def _is_substantial_diagram(self, diagram: Dict) -> bool:
-        x, y, w, h = diagram["bbox"]
-        area_ratio = (w * h) / max(1, self.width * self.height)
-        return (
-            area_ratio >= 0.012
-            and area_ratio <= 0.65
-            and w >= self.width * 0.08
-            and h >= self.height * 0.06
-            and y >= self.height * 0.03
-        )
-
-    def _dedupe_diagram_candidates(self, candidates: List[Dict]) -> List[Dict]:
-        kept = []
-        for candidate in sorted(candidates, key=lambda item: item["area"], reverse=True):
-            if any(self._is_duplicate_diagram(candidate["bbox"], existing["bbox"]) for existing in kept):
-                continue
-            kept.append(candidate)
-        return kept
-
-    def _is_duplicate_diagram(self, first: Tuple, second: Tuple) -> bool:
-        intersection = self._intersection_area(first, second)
-        if intersection == 0:
-            return False
-
-        first_area = first[2] * first[3]
-        second_area = second[2] * second[3]
-        smaller_area = max(1, min(first_area, second_area))
-        union = max(1, first_area + second_area - intersection)
-        return intersection / smaller_area > 0.65 or intersection / union > 0.45
-
-    def _intersection_area(self, first: Tuple, second: Tuple) -> int:
-        ax, ay, aw, ah = [int(value) for value in first]
-        bx, by, bw, bh = [int(value) for value in second]
-        left = max(ax, bx)
-        top = max(ay, by)
-        right = min(ax + aw, bx + bw)
-        bottom = min(ay + ah, by + bh)
-        if right <= left or bottom <= top:
-            return 0
-        return (right - left) * (bottom - top)
 
     def _is_better_diagram_crop(self, current: Dict, candidate: Dict) -> bool:
         x, y, w, h = current["bbox"]
